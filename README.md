@@ -53,6 +53,7 @@ mksquashfs -version
 - [scripts/unmount-anylinuxfs.sh](/Volumes/sources/SquashFStest/scripts/unmount-anylinuxfs.sh) unmounts the mount point and removes the empty directory if possible
 - [scripts/reset-reuse-state.sh](/Volumes/sources/SquashFStest/scripts/reset-reuse-state.sh) deletes the persisted state for a `reuse` mount point
 - [scripts/verify-mounted-image.sh](/Volumes/sources/SquashFStest/scripts/verify-mounted-image.sh) compares an original source tree against a mounted image view
+- [scripts/list-reuse-state.sh](/Volumes/sources/SquashFStest/scripts/list-reuse-state.sh) lists local `reuse` sidecar metadata and state keys
 
 ## Usage
 
@@ -142,6 +143,13 @@ To delete the saved `reuse` state and start fresh later:
 
 ```bash
 ./scripts/reset-reuse-state.sh /tmp/archive-work
+```
+
+To list known `reuse` state directories:
+
+```bash
+./scripts/list-reuse-state.sh
+./scripts/list-reuse-state.sh /tmp /Volumes/work
 ```
 
 ### 4. Verify a mounted image against the original source tree
