@@ -51,6 +51,8 @@ mksquashfs -version
 - [scripts/create-squashfs-image.sh](/Volumes/sources/SquashFStest/scripts/create-squashfs-image.sh) creates a `.sqfs` image from a source directory
 - [scripts/mount-squashfs-rw.sh](/Volumes/sources/SquashFStest/scripts/mount-squashfs-rw.sh) mounts a SquashFS image in read-only mode, ephemeral writable mode, or reusable overlay mode
 - [scripts/unmount-anylinuxfs.sh](/Volumes/sources/SquashFStest/scripts/unmount-anylinuxfs.sh) unmounts the mount point and removes the empty directory if possible
+- [scripts/reset-reuse-state.sh](/Volumes/sources/SquashFStest/scripts/reset-reuse-state.sh) deletes the persisted state for a `reuse` mount point
+- [scripts/verify-mounted-image.sh](/Volumes/sources/SquashFStest/scripts/verify-mounted-image.sh) compares an original source tree against a mounted image view
 
 ## Usage
 
@@ -135,6 +137,35 @@ cd /tmp/huge-project-work
 This unmounts the current view and leaves the original `.sqfs` image unchanged.
 
 For `--mode reuse`, unmount is still required. The difference is that its overlay state is kept for next time instead of being discarded.
+
+To delete the saved `reuse` state and start fresh later:
+
+```bash
+./scripts/reset-reuse-state.sh /tmp/archive-work
+```
+
+### 4. Verify a mounted image against the original source tree
+
+Quick verification by size+mtime:
+
+```bash
+./scripts/verify-mounted-image.sh \
+  /path/to/source-dir \
+  /tmp/archive-ro
+```
+
+Full content verification by checksum:
+
+```bash
+./scripts/verify-mounted-image.sh \
+  --mode checksum \
+  /path/to/source-dir \
+  /tmp/archive-ro
+```
+
+The script intentionally ignores macOS owners, groups, permissions, ACLs, and xattrs, because the SquashFS image created by this project does not preserve macOS xattrs.
+
+By default it uses the lighter `quick` mode and prints scan/comparison stages so long-running checks do not look stuck.
 
 ## How It Works
 
