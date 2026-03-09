@@ -49,7 +49,7 @@ mksquashfs -version
 ## Project Layout
 
 - [scripts/create-squashfs-image.sh](/Volumes/sources/SquashFStest/scripts/create-squashfs-image.sh) creates a `.sqfs` image from a source directory
-- [scripts/mount-squashfs-rw.sh](/Volumes/sources/SquashFStest/scripts/mount-squashfs-rw.sh) mounts a SquashFS image in either read-only mode or ephemeral writable mode
+- [scripts/mount-squashfs-rw.sh](/Volumes/sources/SquashFStest/scripts/mount-squashfs-rw.sh) mounts a SquashFS image in read-only mode, ephemeral writable mode, or reusable overlay mode
 - [scripts/unmount-anylinuxfs.sh](/Volumes/sources/SquashFStest/scripts/unmount-anylinuxfs.sh) unmounts the mount point and removes the empty directory if possible
 
 ## Usage
@@ -101,14 +101,29 @@ Temporary writable mode:
 
 After that, work in `/tmp/archive-rw` as if it were a writable directory tree.
 
+Reusable overlay mode:
+
+```bash
+./scripts/mount-squashfs-rw.sh \
+  --mode reuse \
+  /path/to/archive.sqfs \
+  /tmp/archive-work
+```
+
+This is still a true mount. The difference is that the overlay `upper/work` state is preserved instead of discarded.
+
+The script stores small metadata in a sidecar directory next to the mount point such as `/tmp/archive-work.sqfs-reuse`, and stores the actual reusable overlay state in the persistent `anylinuxfs` VM root filesystem.
+
+If you keep using the same image and mount point, the next `--mode reuse` call will remount the same overlay state exactly as it was left before. If nothing was changed, the persistent overlay stays nearly empty.
+
 Example:
 
 ```bash
 ./scripts/mount-squashfs-rw.sh \
-  --mode rw \
+  --mode reuse \
   /Volumes/archive/huge-project.sqfs \
-  /tmp/huge-project-rw
-cd /tmp/huge-project-rw
+  /tmp/huge-project-work
+cd /tmp/huge-project-work
 ```
 
 ### 3. Unmount and discard temporary changes
@@ -117,7 +132,9 @@ cd /tmp/huge-project-rw
 ./scripts/unmount-anylinuxfs.sh /tmp/archive-rw
 ```
 
-This removes the writable overlay state from the Linux VM and leaves the original `.sqfs` image unchanged.
+This unmounts the current view and leaves the original `.sqfs` image unchanged.
+
+For `--mode reuse`, unmount is still required. The difference is that its overlay state is kept for next time instead of being discarded.
 
 ## How It Works
 
@@ -133,6 +150,13 @@ In `--mode rw`, `mount-squashfs-rw.sh` then:
 - exports the merged view back to macOS over NFS
 
 The writable view is temporary by design. The upper layer lives only inside the running VM.
+
+In `--mode reuse`, the script:
+
+- mounts the `.sqfs` image through `anylinuxfs`
+- reuses a persistent overlay `upper/work` pair keyed to the image and mount point
+- stores small metadata in a sidecar directory next to the mount point
+- restores the mounted view exactly as it was left at the last unmount
 
 ## Why `anylinuxfs shell` Is Not Needed for Image Creation
 
@@ -152,8 +176,9 @@ That means the recommended workflow is:
 
 - mounting depends on `anylinuxfs`, which currently targets Apple Silicon macOS
 - with current `anylinuxfs` releases, only one mount can be active at a time; the upstream project notes this may improve in the future
-- the writable layer is intentionally non-persistent
-- the first writable mount updates `~/.anylinuxfs/config.toml`
+- `rw` mode is intentionally non-persistent
+- `reuse` mode is persistent, but its state depends on the `anylinuxfs` VM rootfs and the reuse sidecar metadata remaining intact
+- the first `rw` or `reuse` mount updates `~/.anylinuxfs/config.toml`
 - mount and unmount behavior ultimately depends on `anylinuxfs` and macOS NFS behavior
 
 This has an important consequence for archive design: it is fine to store many separate `.sqfs` images, but in normal use you should expect to mount only one of them at a time.
@@ -171,4 +196,5 @@ This repository has been tested end-to-end with:
 - image creation through Homebrew `mksquashfs`
 - mounting the generated `.sqfs` through `anylinuxfs`
 - writing files into the mounted tree
+- preserving files across `reuse` unmount and remount
 - unmounting and discarding temporary changes
